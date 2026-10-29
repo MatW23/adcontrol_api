@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block titulo %}Produtos{% endblock %}
+
+{% block conteudo %}
+{% set tem_erro = get_flashed_messages(category_filter=['erro'])|length > 0 %}
+<header class="pagina-topo">
+  <h1>Produtos</h1>
+  <p>Os produtos que a Presente na Web anuncia e o resultado que cada um trouxe por meio dos seus anúncios.</p>
+</header>
+
+<details class="painel formulario" {% if not produtos or tem_erro %}open{% endif %}>
+  <summary>Novo produto</summary>
+  <form method="POST" action="{{ url_for('criar_produto_tela') }}" class="form-grade"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label class="campo campo-largo">Nome do produto
+      <input type="text" name="nome" placeholder="Ex.: Fone Bluetooth XY200" required>
+    </label>
+    <label class="campo">Categoria
+      <input type="text" name="categoria" placeholder="Ex.: Eletrônicos">
+    </label>
+    <label class="campo">Preço unitário (R$)
+      <input type="text" inputmode="decimal" name="preco_unitario" placeholder="89,90">
+    </label>
+    <div class="acoes-form">
+      <button type="submit" class="botao">Cadastrar produto</button>
+    </div>
+  </form>
+</details>
+
+<section class="painel">
+  <div class="painel-topo"><h2>Produtos cadastrados</h2></div>
+
+  {% if produtos %}
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Produto</th>
+          <th>Categoria</th>
+          <th class="num">Preço unitário</th>
+          <th class="num">Anúncios</th>
+          <th class="num">Impressões</th>
+          <th class="num">Vendas</th>
+          <th class="num">Receita</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in produtos %}
+        <tr>
+          <td class="celula-titulo">{{ p.nome }}</td>
+          <td>{{ p.categoria or "—" }}</td>
+          <td class="num">{{ p.preco_unitario|brl }}</td>
+          <td class="num">{{ p.n_anuncios|numero }}</td>
+          <td class="num">{{ p.impressoes|numero }}</td>
+          <td class="num">{{ p.vendas|numero }}</td>
+          <td class="num">{{ p.receita|brl }}</td>
+          <td class="acoes"><a class="link-discreto" href="{{ url_for('editar_produto', produto_id=p._id) }}">Editar</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="vazio">
+    <strong>Nenhum produto cadastrado</strong>
+    <p>Use o formulário acima para cadastrar o primeiro.</p>
+  </div>
+  {% endif %}
+
+  <p class="rodape-api">Vendas e receita contam apenas métricas registradas em um anúncio do produto. Lista também em JSON: <code>/api/produtos</code></p>
+</section>
+{% endblock %}

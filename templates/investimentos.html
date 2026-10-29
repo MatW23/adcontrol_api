@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block titulo %}Investimentos{% endblock %}
+
+{% block conteudo %}
+{% set tem_erro = get_flashed_messages(category_filter=['erro'])|length > 0 %}
+<header class="pagina-topo">
+  <h1>Investimentos</h1>
+  <p>Registre quanto foi investido em cada campanha. Os indicadores são recalculados na hora.</p>
+</header>
+
+{% if campanhas %}
+<details class="painel formulario" {% if not investimentos or tem_erro %}open{% endif %}>
+  <summary>Novo investimento</summary>
+  <form method="POST" action="{{ url_for('criar_investimento_tela') }}" class="form-grade"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label class="campo campo-largo">Campanha
+      <select name="campanha_id" required>
+        <option value="" disabled selected>Selecione uma campanha</option>
+        {% for c in campanhas %}
+        <option value="{{ c._id }}">{{ c.nome }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="campo">Data
+      <input type="date" name="data" required>
+    </label>
+    <label class="campo">Valor investido (R$)
+      <input type="text" inputmode="decimal" name="investimento" placeholder="500,00" required>
+    </label>
+    <div class="acoes-form">
+      <button type="submit" class="botao">Registrar investimento</button>
+    </div>
+  </form>
+</details>
+{% else %}
+<section class="painel">
+  <div class="vazio">
+    <strong>Cadastre uma campanha primeiro</strong>
+    <p>Todo investimento é registrado dentro de uma campanha.</p>
+    <a class="botao" href="{{ url_for('tela_campanhas') }}">Ir para campanhas</a>
+  </div>
+</section>
+{% endif %}
+
+{% if orcamentos %}
+<section class="painel">
+  <div class="painel-topo"><h2>Controle de orçamento</h2><span class="sub">planejado x investido, por campanha</span></div>
+  <div class="painel-corpo">
+    <ul class="barras">
+      {% for c in orcamentos %}
+      <li>
+        <div class="barras-nome">{{ c.nome }}<span class="sub">{{ c.uso_texto }}% do orçamento</span></div>
+        <div class="barras-linha">
+          <div class="trilho" role="img" aria-label="{{ c.uso_texto }}% do orçamento usado"><span class="barra-cheia {{ 'alerta-barra' if c.estourou else 'investido' }}" style="width: {{ c.uso_pct }}%"></span></div>
+          <span class="barras-valor">{{ c.total_investido|brl }} de {{ c.orcamento_planejado|brl }}</span>
+        </div>
+        {% if c.estourou %}<div class="alerta">Acima do orçamento em {{ (c.total_investido - c.orcamento_planejado)|brl }}</div>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endif %}
+
+<section class="painel">
+  <div class="painel-topo"><h2>Investimentos registrados</h2></div>
+
+  {% if investimentos %}
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Campanha</th>
+          <th>Data</th>
+          <th class="num">Valor investido</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for i in investimentos %}
+        <tr>
+          <td class="celula-titulo">{{ i.campanha_nome }}</td>
+          <td>{{ i.data|data_br }}</td>
+          <td class="num">{{ i.investimento|brl }}</td>
+          <td class="acoes"><form method="POST" action="{{ url_for('excluir_investimento', registro_id=i._id) }}" onsubmit="return confirm('Excluir este investimento? Os indicadores da campanha serão recalculados.')"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button type="submit" class="botao-link perigo">Excluir</button></form></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="vazio">
+    <strong>Nenhum investimento registrado</strong>
+    <p>Os valores registrados aparecem aqui.</p>
+  </div>
+  {% endif %}
+
+  <p class="rodape-api">Lista também disponível em JSON: <code>/api/investimentos</code></p>
+</section>
+{% endblock %}

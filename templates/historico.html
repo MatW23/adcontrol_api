@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block titulo %}Histórico{% endblock %}
+
+{% block conteudo %}
+<header class="pagina-topo">
+  <h1>Histórico</h1>
+  <p>Os resultados dia a dia, do mais recente para o mais antigo. Filtre por campanha ou período.</p>
+</header>
+
+<section class="painel painel-filtros">
+  {% set acao = url_for('tela_historico') %}
+  {% include "_filtros.html" %}
+</section>
+
+<section class="painel">
+  <div class="painel-topo"><h2>Resultados por dia</h2></div>
+  {% if dias %}
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th class="num">Investido</th>
+          <th class="num">Impressões</th>
+          <th class="num">Cliques</th>
+          <th class="num">Vendas</th>
+          <th class="num">Receita</th>
+          <th class="num">ROAS do dia</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in dias %}
+        <tr>
+          <td class="celula-titulo">{{ d.data|data_br }}</td>
+          <td class="num">{{ d.investido|brl }}</td>
+          <td class="num">{{ d.impressoes|numero }}</td>
+          <td class="num">{{ d.cliques|numero }}</td>
+          <td class="num">{{ d.vendas|numero }}</td>
+          <td class="num">{{ d.receita|brl }}</td>
+          <td class="num {{ 'ruim' if d.investido and d.roas < 1 }}">{{ d.roas|decimal(2) }}x</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td>Total do filtro</td>
+          <td class="num">{{ total.investido|brl }}</td>
+          <td class="num">{{ total.impressoes|numero }}</td>
+          <td class="num">{{ total.cliques|numero }}</td>
+          <td class="num">{{ total.vendas|numero }}</td>
+          <td class="num">{{ total.receita|brl }}</td>
+          <td class="num">{{ total.roas|decimal(2) }}x</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% else %}
+  <div class="vazio">
+    <strong>Nenhum resultado para este filtro</strong>
+    <p>Ajuste a campanha ou o período, ou registre novos investimentos e métricas.</p>
+  </div>
+  {% endif %}
+  <p class="rodape-api">Registros sem data não aparecem aqui. Dados também em JSON: <code>/api/historico</code></p>
+</section>
+{% endblock %}

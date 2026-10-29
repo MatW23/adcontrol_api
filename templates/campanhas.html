@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block titulo %}Campanhas{% endblock %}
+
+{% block conteudo %}
+{% set tem_erro = get_flashed_messages(category_filter=['erro'])|length > 0 %}
+<header class="pagina-topo">
+  <h1>Campanhas</h1>
+  <p>Cadastre campanhas e acompanhe quanto do orçamento já foi investido e qual o retorno.</p>
+</header>
+
+<details class="painel formulario" {% if not campanhas or tem_erro %}open{% endif %}>
+  <summary>Nova campanha</summary>
+  <form method="POST" action="{{ url_for('criar_campanha_tela') }}" class="form-grade"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label class="campo campo-largo">Nome da campanha
+      <input type="text" name="nome" placeholder="Ex.: Black Friday 2026" required>
+    </label>
+    <label class="campo">Início
+      <input type="date" name="data_inicio">
+    </label>
+    <label class="campo">Fim
+      <input type="date" name="data_fim">
+    </label>
+    <label class="campo">Orçamento planejado (R$)
+      <input type="text" inputmode="decimal" name="orcamento_planejado" placeholder="1500,00">
+    </label>
+    <div class="acoes-form">
+      <button type="submit" class="botao">Cadastrar campanha</button>
+    </div>
+  </form>
+</details>
+
+<section class="painel">
+  <div class="painel-topo"><h2>Campanhas cadastradas</h2></div>
+
+  {% if campanhas %}
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Campanha</th>
+          <th>Orçamento</th>
+          <th class="num">CTR</th>
+          <th class="num">CPC</th>
+          <th class="num">ROAS</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in campanhas %}
+        <tr>
+          <td>
+            <div class="celula-titulo">{{ c.nome }}</div>
+            <div class="celula-sub">{{ c.data_inicio|data_br }} a {{ c.data_fim|data_br }}</div>
+          </td>
+          <td class="celula-orcamento">
+            <div class="uso-valores"><span>{{ c.total_investido|brl }}</span><span class="sub">de {{ c.orcamento_planejado|brl }}</span></div>
+            <div class="barra" role="img" aria-label="{{ c.uso_texto }}% do orçamento usado"><span class="{{ 'estourou' if c.estourou }}" style="width: {{ c.uso_pct }}%"></span></div>
+            {% if c.estourou %}<div class="alerta">Acima do orçamento</div>{% endif %}
+          </td>
+          <td class="num">{{ c.ctr|decimal(2) }}%</td>
+          <td class="num">{{ c.cpc|brl }}</td>
+          <td class="num {{ 'ruim' if c.total_investido and c.roas < 1 }}">{{ c.roas|decimal(2) }}x</td>
+          <td><span class="selo selo-{{ c.status }}">{{ c.status }}</span></td>
+          <td class="acoes"><a class="link-discreto" href="{{ url_for('editar_campanha', campanha_id=c._id) }}">Editar</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="vazio">
+    <strong>Nenhuma campanha cadastrada</strong>
+    <p>Use o formulário acima para cadastrar a primeira.</p>
+  </div>
+  {% endif %}
+
+  <p class="rodape-api">Todos os indicadores e totais também estão disponíveis em JSON: <code>/api/campanhas</code></p>
+</section>
+{% endblock %}

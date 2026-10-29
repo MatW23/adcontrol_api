@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block titulo %}Indicadores{% endblock %}
+
+{% block conteudo %}
+<header class="pagina-topo">
+  <h1>Indicadores</h1>
+  <p>Os cinco indicadores de cada campanha. Eles são recalculados automaticamente a cada investimento ou métrica registrados.</p>
+</header>
+
+<section class="painel">
+  <div class="painel-topo"><h2>Indicadores por campanha</h2></div>
+  {% if campanhas %}
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Campanha</th>
+          <th class="num">CTR</th>
+          <th class="num">CPC</th>
+          <th class="num">Taxa de conversão</th>
+          <th class="num">Custo por venda</th>
+          <th class="num">ROAS</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in campanhas %}
+        <tr>
+          <td>
+            <div class="celula-titulo">{{ c.nome }}</div>
+            <div class="celula-sub">Investido {{ c.total_investido|brl }}, receita {{ c.total_receita|brl }}</div>
+          </td>
+          <td class="num">{{ c.ctr|decimal(2) }}%</td>
+          <td class="num">{{ c.cpc|brl }}</td>
+          <td class="num">{{ c.taxa_conversao|decimal(2) }}%</td>
+          <td class="num">{{ c.custo_por_venda|brl }}</td>
+          <td class="num {{ 'ruim' if c.total_investido and c.roas < 1 }}">{{ c.roas|decimal(2) }}x</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td>Todas as campanhas</td>
+          <td class="num">{{ total.ctr|decimal(2) }}%</td>
+          <td class="num">{{ total.cpc|brl }}</td>
+          <td class="num">{{ total.taxa_conversao|decimal(2) }}%</td>
+          <td class="num">{{ total.custo_por_venda|brl }}</td>
+          <td class="num">{{ total.roas|decimal(2) }}x</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% else %}
+  <div class="vazio">
+    <strong>Nenhuma campanha cadastrada</strong>
+    <p>Os indicadores aparecem assim que houver campanhas com investimentos e métricas.</p>
+    <a class="botao" href="{{ url_for('tela_campanhas') }}">Cadastrar campanha</a>
+  </div>
+  {% endif %}
+</section>
+
+<section class="painel">
+  <div class="painel-topo"><h2>Como cada indicador é calculado</h2></div>
+  <div class="painel-corpo">
+    <dl class="formulas">
+      <div><dt>CTR</dt><dd><code>(Cliques ÷ Impressões) × 100</code><span>De cada 100 vezes que o anúncio apareceu, quantas viraram clique.</span></dd></div>
+      <div><dt>CPC</dt><dd><code>Investimento ÷ Cliques</code><span>Quanto custou, em média, cada clique.</span></dd></div>
+      <div><dt>Taxa de conversão</dt><dd><code>(Vendas ÷ Visitas) × 100</code><span>De cada 100 visitas, quantas viraram venda.</span></dd></div>
+      <div><dt>Custo por venda</dt><dd><code>Investimento ÷ Vendas</code><span>Quanto foi investido para conseguir cada venda.</span></dd></div>
+      <div><dt>ROAS</dt><dd><code>Receita atribuída ÷ Investimento</code><span>Quantos reais de receita voltam para cada R$ 1 investido. Abaixo de 1, a receita é menor que o custo.</span></dd></div>
+    </dl>
+    <p class="note">Quando o divisor é zero (por exemplo, nenhum clique registrado), o indicador aparece como 0, para evitar resultados inválidos.</p>
+  </div>
+</section>
+{% endblock %}

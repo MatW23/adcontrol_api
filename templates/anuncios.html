@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block titulo %}Anúncios{% endblock %}
+
+{% block conteudo %}
+{% set tem_erro = get_flashed_messages(category_filter=['erro'])|length > 0 %}
+<header class="pagina-topo">
+  <h1>Anúncios</h1>
+  <p>Cada anúncio divulga um produto dentro de uma campanha. Aqui você acompanha o resultado de cada um individualmente.</p>
+</header>
+
+{% if campanhas and produtos %}
+<details class="painel formulario" {% if not anuncios or tem_erro %}open{% endif %}>
+  <summary>Novo anúncio</summary>
+  <form method="POST" action="{{ url_for('criar_anuncio_tela') }}" class="form-grade"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label class="campo campo-largo">Título do anúncio
+      <input type="text" name="titulo" placeholder="Ex.: Fone Bluetooth XY200 com frete grátis" required>
+    </label>
+    <label class="campo">Campanha
+      <select name="campanha_id" required>
+        <option value="" disabled selected>Selecione uma campanha</option>
+        {% for c in campanhas %}
+        <option value="{{ c._id }}">{{ c.nome }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="campo">Produto divulgado
+      <select name="produto_id" required>
+        <option value="" disabled selected>Selecione um produto</option>
+        {% for p in produtos %}
+        <option value="{{ p._id }}">{{ p.nome }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="campo campo-largo">Código no Mercado Livre (opcional)
+      <input type="text" name="codigo_marketplace" placeholder="Ex.: MLB1234567890">
+    </label>
+    <div class="acoes-form">
+      <button type="submit" class="botao">Cadastrar anúncio</button>
+    </div>
+  </form>
+</details>
+{% else %}
+<section class="painel">
+  <div class="vazio">
+    <strong>Falta cadastrar {{ 'uma campanha' if not campanhas else 'um produto' }}</strong>
+    <p>Todo anúncio precisa estar ligado a uma campanha e a um produto.</p>
+    <a class="botao" href="{{ url_for('tela_campanhas') if not campanhas else url_for('tela_produtos') }}">Ir para {{ 'campanhas' if not campanhas else 'produtos' }}</a>
+  </div>
+</section>
+{% endif %}
+
+<section class="painel">
+  <div class="painel-topo"><h2>Anúncios cadastrados</h2></div>
+
+  {% if anuncios %}
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Anúncio</th>
+          <th>Campanha</th>
+          <th class="num">Impressões</th>
+          <th class="num">Cliques</th>
+          <th class="num">CTR</th>
+          <th class="num">Vendas</th>
+          <th class="num">Receita</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in anuncios %}
+        <tr>
+          <td>
+            <div class="celula-titulo">{{ a.titulo }}</div>
+            <div class="celula-sub">{{ a.produto_nome }}{% if a.codigo_marketplace %} ({{ a.codigo_marketplace }}){% endif %}</div>
+          </td>
+          <td>{{ a.campanha_nome }}</td>
+          <td class="num">{{ a.totais.impressoes|numero }}</td>
+          <td class="num">{{ a.totais.cliques|numero }}</td>
+          <td class="num">{{ a.totais.ctr|decimal(2) }}%</td>
+          <td class="num">{{ a.totais.vendas|numero }}</td>
+          <td class="num">{{ a.totais.receita|brl }}</td>
+          <td><span class="selo selo-{{ 'ativa' if a.status == 'ativo' else a.status }}">{{ a.status }}</span></td>
+          <td class="acoes"><a class="link-discreto" href="{{ url_for('editar_anuncio', anuncio_id=a._id) }}">Editar</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="vazio">
+    <strong>Nenhum anúncio cadastrado</strong>
+    <p>Os anúncios cadastrados aparecem aqui, com o resultado de cada um.</p>
+  </div>
+  {% endif %}
+
+  <p class="rodape-api">O resultado vem das métricas registradas com o anúncio selecionado. Lista também em JSON: <code>/api/anuncios</code></p>
+</section>
+{% endblock %}

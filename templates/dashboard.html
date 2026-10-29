@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block titulo %}Dashboard{% endblock %}
+
+{% macro barra(largura, classe) %}<div class="trilho"><span class="barra-cheia {{ classe }}" style="width: {{ largura }}%"></span></div>{% endmacro %}
+
+{% block conteudo %}
+<header class="pagina-topo">
+  <h1>Dashboard</h1>
+  <p>Para onde vai o investimento e o que ele devolve. Use os filtros para olhar uma campanha ou um período.</p>
+</header>
+
+<section class="painel painel-filtros">
+  {% set acao = url_for('tela_dashboard') %}
+  {% include "_filtros.html" %}
+</section>
+
+{% if not tem_dados %}
+<section class="painel">
+  <div class="vazio">
+    <strong>Nenhum dado para este filtro</strong>
+    <p>Registre investimentos e métricas, ou ajuste a campanha e o período escolhidos.</p>
+  </div>
+</section>
+{% else %}
+
+<section class="painel kpis kpis-6" aria-label="Resumo do período">
+  <div class="kpi">
+    <div class="kpi-valor">{{ resumo.investido|brl }}</div>
+    <div class="kpi-nome">Investido</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-valor">{{ resumo.receita|brl }}</div>
+    <div class="kpi-nome">Receita atribuída</div>
+    <div class="kpi-nota">{{ resumo.vendas|numero }} vendas</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-valor {{ 'ruim' if resumo.investido and resumo.roas < 1 }}">{{ resumo.roas|decimal(2) }}x</div>
+    <div class="kpi-nome">ROAS</div>
+    <div class="kpi-nota">receita para cada R$ 1 investido</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-valor">{{ resumo.ctr|decimal(2) }}%</div>
+    <div class="kpi-nome">CTR</div>
+    <div class="kpi-nota">cliques por impressão</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-valor">{{ resumo.taxa_conversao|decimal(2) }}%</div>
+    <div class="kpi-nome">Taxa de conversão</div>
+    <div class="kpi-nota">vendas por visita</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-valor">{{ resumo.custo_por_venda|brl }}</div>
+    <div class="kpi-nome">Custo por venda</div>
+    <div class="kpi-nota">CPC de {{ resumo.cpc|brl }}</div>
+  </div>
+</section>
+
+<section class="painel">
+  <div class="painel-topo">
+    <h2>Investimento e receita por dia</h2>
+    <div class="legenda">
+      <span><i class="chave chave-investido"></i>Investido</span>
+      <span><i class="chave chave-receita"></i>Receita atribuída</span>
+    </div>
+  </div>
+  {% if grafico %}
+  <div class="painel-corpo">
+    <svg class="grafico" viewBox="0 0 {{ grafico.largura }} {{ grafico.altura }}" role="img" aria-label="Linhas de investimento e receita atribuída por dia">
+      {% for m in grafico.marcas_y %}
+      <line class="grade" x1="{{ grafico.esq }}" x2="{{ grafico.largura - grafico.dir }}" y1="{{ m.y }}" y2="{{ m.y }}"/>
+      <text class="eixo" x="{{ grafico.esq - 10 }}" y="{{ m.y + 4 }}" text-anchor="end">{{ m.rotulo }}</text>
+      {% endfor %}
+      {% for m in grafico.marcas_x %}
+      <text class="eixo" x="{{ m.x }}" y="{{ grafico.altura - 14 }}" text-anchor="middle">{{ m.rotulo }}</text>
+      {% endfor %}
+      {% if grafico.pontos|length > 1 %}
+      <polyline class="linha linha-receita" points="{{ grafico.linha_receita }}"/>
+      <polyline class="linha linha-investido" points="{{ grafico.linha_investido }}"/>
+      {% endif %}
+      {% for p in grafico.pontos %}
+      <circle class="ponto ponto-receita" cx="{{ p.x }}" cy="{{ p.y_receita }}" r="5"><title>{{ p.data }}: receita {{ p.receita|brl }}</title></circle>
+      <circle class="ponto ponto-investido" cx="{{ p.x }}" cy="{{ p.y_investido }}" r="5"><title>{{ p.data }}: investido {{ p.investido|brl }}</title></circle>
+      {% endfor %}
+    </svg>
+  </div>
+  {% else %}
+  <div class="vazio"><p>Os registros deste filtro não têm data válida para montar o gráfico.</p></div>
+  {% endif %}
+</section>
+
+<div class="grade-paineis">
+  <section class="painel">
+    <div class="painel-topo">
+      <h2>{{ barras.titulo }}</h2>
+      {% if barras.duplo %}
+      <div class="legenda">
+        <span><i class="chave chave-investido"></i>Investido</span>
+        <span><i class="chave chave-receita"></i>Receita</span>
+      </div>
+      {% endif %}
+    </div>
+    <div class="painel-corpo">
+      {% if barras.itens %}
+      <ul class="barras">
+        {% for i in barras.itens %}
+        <li>
+          <div class="barras-nome">{{ i.nome }}{% if barras.duplo %}<span class="sub">ROAS {{ i.roas|decimal(2) }}x</span>{% endif %}</div>
+          {% if barras.duplo %}
+          <div class="barras-linha">{{ barra(i.w_investido, 'investido') }}<span class="barras-valor">{{ i.investido|brl }}</span></div>
+          <div class="barras-linha">{{ barra(i.w_receita, 'receita') }}<span class="barras-valor">{{ i.receita|brl }}</span></div>
+          {% else %}
+          <div class="barras-linha">{{ barra(i.w_receita, 'receita') }}<span class="barras-valor">{{ i.receita|brl }}</span></div>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="note">Sem dados neste filtro.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="painel">
+    <div class="painel-topo"><h2>Funil de conversão</h2></div>
+    <div class="painel-corpo">
+      <ol class="funil">
+        {% for e in funil %}
+        <li>
+          <div class="funil-topo"><span>{{ e.nome }}</span><strong>{{ e.valor|numero }}</strong></div>
+          {% if e.taxa is not none %}
+          {{ barra(e.largura, 'investido') }}
+          <div class="sub">{{ e.taxa|decimal(2) }}% {{ e.descricao }}</div>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+    </div>
+  </section>
+</div>
+
+<section class="painel">
+  <div class="painel-topo"><h2>Receita por produto</h2></div>
+  <div class="painel-corpo">
+    {% if produtos %}
+    <ul class="barras">
+      {% for p in produtos %}
+      <li>
+        <div class="barras-nome">{{ p.nome }}</div>
+        <div class="barras-linha">{{ barra(p.w_receita, 'receita') }}<span class="barras-valor">{{ p.receita|brl }}</span></div>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="note">Considera apenas métricas registradas em um anúncio, pois é o anúncio que liga a venda ao produto.</p>
+    {% else %}
+    <p class="note">Nenhuma métrica deste filtro foi registrada em um anúncio de produto.</p>
+    {% endif %}
+  </div>
+</section>
+
+{% endif %}
+{% endblock %}

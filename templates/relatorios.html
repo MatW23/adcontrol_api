@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block titulo %}Relatórios{% endblock %}
+
+{% macro exportar(tipo) -%}
+<a class="botao-secundario" href="{{ url_for('exportar_csv', tipo=tipo, campanha_id=filtros.campanha_id or None, de=filtros.de or None, ate=filtros.ate or None) }}">Exportar CSV</a>
+{%- endmacro %}
+
+{% block conteudo %}
+<header class="pagina-topo topo-com-acao">
+  <div>
+    <h1>Relatórios</h1>
+    <p>Relatórios gerenciais para acompanhar investimentos e resultados. Exporte para Excel ou Power BI, ou imprima e salve em PDF.</p>
+  </div>
+  <button type="button" class="botao-secundario nao-imprimir" onclick="window.print()">Imprimir ou salvar em PDF</button>
+</header>
+
+<section class="painel painel-filtros nao-imprimir">
+  {% set acao = url_for('tela_relatorios') %}
+  {% include "_filtros.html" %}
+</section>
+
+<p class="so-impressao">Campanha: {{ nome_filtro }}. Período: {{ filtros.de|data_br if filtros.de else 'início' }} a {{ filtros.ate|data_br if filtros.ate else 'hoje' }}.</p>
+
+<section class="painel kpis" aria-label="Resumo do filtro">
+  <div class="kpi"><div class="kpi-valor">{{ total.investido|brl }}</div><div class="kpi-nome">Investido</div></div>
+  <div class="kpi"><div class="kpi-valor">{{ total.receita|brl }}</div><div class="kpi-nome">Receita atribuída</div><div class="kpi-nota">{{ total.vendas|numero }} vendas</div></div>
+  <div class="kpi"><div class="kpi-valor {{ 'ruim' if total.investido and total.roas < 1 }}">{{ total.roas|decimal(2) }}x</div><div class="kpi-nome">ROAS</div></div>
+  <div class="kpi"><div class="kpi-valor">{{ total.ctr|decimal(2) }}%</div><div class="kpi-nome">CTR</div></div>
+</section>
+
+<section class="painel">
+  <div class="painel-topo"><h2>Resumo por campanha</h2><span class="nao-imprimir">{{ exportar('campanhas') }}</span></div>
+  {% if campanhas_rel %}
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Campanha</th><th class="num">Investido</th><th class="num">Receita</th><th class="num">ROAS</th>
+          <th class="num">CTR</th><th class="num">CPC</th><th class="num">Conversão</th><th class="num">Custo por venda</th><th class="num">Vendas</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in campanhas_rel %}
+        <tr>
+          <td><div class="celula-titulo">{{ l.campanha }}</div><div class="celula-sub">{{ l.status|capitalize }}</div></td>
+          <td class="num">{{ l.investido|brl }}</td><td class="num">{{ l.receita|brl }}</td>
+          <td class="num {{ 'ruim' if l.investido and l.roas < 1 }}">{{ l.roas|decimal(2) }}x</td>
+          <td class="num">{{ l.ctr|decimal(2) }}%</td><td class="num">{{ l.cpc|brl }}</td>
+          <td class="num">{{ l.taxa_conversao|decimal(2) }}%</td><td class="num">{{ l.custo_por_venda|brl }}</td><td class="num">{{ l.vendas|numero }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<div class="vazio"><p>Nenhuma campanha para este filtro.</p></div>{% endif %}
+</section>
+
+<section class="painel">
+  <div class="painel-topo"><h2>Resultados por dia</h2><span class="nao-imprimir">{{ exportar('dias') }}</span></div>
+  {% if dias %}
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr><th>Data</th><th class="num">Investido</th><th class="num">Impressões</th><th class="num">Cliques</th><th class="num">Vendas</th><th class="num">Receita</th><th class="num">ROAS do dia</th></tr>
+      </thead>
+      <tbody>
+        {% for d in dias %}
+        <tr>
+          <td class="celula-titulo">{{ d.data|data_br }}</td><td class="num">{{ d.investido|brl }}</td><td class="num">{{ d.impressoes|numero }}</td>
+          <td class="num">{{ d.cliques|numero }}</td><td class="num">{{ d.vendas|numero }}</td><td class="num">{{ d.receita|brl }}</td>
+          <td class="num {{ 'ruim' if d.investido and d.roas < 1 }}">{{ d.roas|decimal(2) }}x</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<div class="vazio"><p>Nenhum resultado com data neste filtro.</p></div>{% endif %}
+</section>
+
+<section class="painel">
+  <div class="painel-topo"><h2>Desempenho por anúncio</h2><span class="nao-imprimir">{{ exportar('anuncios') }}</span></div>
+  {% if anuncios_rel %}
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr><th>Anúncio</th><th>Campanha</th><th class="num">Impressões</th><th class="num">Cliques</th><th class="num">CTR</th><th class="num">Vendas</th><th class="num">Ticket médio</th><th class="num">Receita</th></tr>
+      </thead>
+      <tbody>
+        {% for a in anuncios_rel %}
+        <tr>
+          <td><div class="celula-titulo">{{ a.anuncio }}</div><div class="celula-sub">{{ a.produto }}</div></td><td>{{ a.campanha }}</td>
+          <td class="num">{{ a.impressoes|numero }}</td><td class="num">{{ a.cliques|numero }}</td><td class="num">{{ a.ctr|decimal(2) }}%</td>
+          <td class="num">{{ a.vendas|numero }}</td><td class="num">{{ a.ticket|brl }}</td><td class="num">{{ a.receita|brl }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="rodape-api">O investimento é registrado por campanha, então não há ROAS por anúncio.</p>
+  {% else %}<div class="vazio"><p>Nenhum anúncio neste filtro.</p></div>{% endif %}
+</section>
+
+<section class="painel">
+  <div class="painel-topo"><h2>Desempenho por produto</h2><span class="nao-imprimir">{{ exportar('produtos') }}</span></div>
+  {% if produtos_rel %}
+  <div class="tabela-wrap">
+    <table>
+      <thead><tr><th>Produto</th><th class="num">Anúncios</th><th class="num">Impressões</th><th class="num">Cliques</th><th class="num">CTR</th><th class="num">Vendas</th><th class="num">Receita</th></tr></thead>
+      <tbody>
+        {% for p in produtos_rel %}
+        <tr>
+          <td class="celula-titulo">{{ p.produto }}</td><td class="num">{{ p.anuncios|numero }}</td><td class="num">{{ p.impressoes|numero }}</td>
+          <td class="num">{{ p.cliques|numero }}</td><td class="num">{{ p.ctr|decimal(2) }}%</td><td class="num">{{ p.vendas|numero }}</td><td class="num">{{ p.receita|brl }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="rodape-api">Considera só métricas registradas em um anúncio do produto.</p>
+  {% else %}<div class="vazio"><p>Nenhuma métrica registrada em anúncios neste filtro.</p></div>{% endif %}
+</section>
+
+<section class="painel nao-imprimir">
+  <div class="painel-topo"><h2>Dados brutos para Excel e Power BI</h2></div>
+  <div class="painel-corpo">
+    <p class="note" style="margin-top:0">Cada linha é um registro, sem somas. Serve de base para análises estatísticas (média, mediana, desvio padrão, boxplot). Os arquivos usam ponto e vírgula e decimais com vírgula, o formato que o Excel em português abre direto. No Power BI, importe como arquivo de texto/CSV.</p>
+    <div class="botoes-linha">{{ exportar('metricas') | replace('Exportar CSV', 'Métricas (CSV)') }} {{ exportar('investimentos') | replace('Exportar CSV', 'Investimentos (CSV)') }}</div>
+  </div>
+</section>
+{% endblock %}

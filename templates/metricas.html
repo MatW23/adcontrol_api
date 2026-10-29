@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block titulo %}Métricas<script>
+  /* Mostra no campo "Anúncio" apenas os anúncios da campanha escolhida.
+     A validação de verdade continua no servidor. */
+  (function () {
+    var campanha = document.getElementById('campanha_id');
+    var anuncio = document.getElementById('anuncio_id');
+    if (!campanha || !anuncio) return;
+    function filtrar() {
+      Array.prototype.forEach.call(anuncio.options, function (o) {
+        if (!o.value) return;
+        var ok = !campanha.value || o.getAttribute('data-campanha') === campanha.value;
+        o.hidden = !ok;
+        o.disabled = !ok;
+        if (!ok && o.selected) anuncio.value = '';
+      });
+    }
+    campanha.addEventListener('change', filtrar);
+    filtrar();
+  })();
+</script>
+{% endblock %}
+
+{% block conteudo %}
+{% set tem_erro = get_flashed_messages(category_filter=['erro'])|length > 0 %}
+<header class="pagina-topo">
+  <h1>Métricas</h1>
+  <p>Registre impressões, cliques, visitas, vendas e receita de cada campanha. CTR, CPC, conversão, custo por venda e ROAS são calculados automaticamente.</p>
+</header>
+
+{% if campanhas %}
+<details class="painel formulario" {% if not metricas or tem_erro %}open{% endif %}>
+  <summary>Nova métrica</summary>
+  <form method="POST" action="{{ url_for('criar_metrica_tela') }}" class="form-grade"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label class="campo">Campanha
+      <select name="campanha_id" id="campanha_id" required>
+        <option value="" disabled selected>Selecione uma campanha</option>
+        {% for c in campanhas %}
+        <option value="{{ c._id }}">{{ c.nome }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="campo">Data
+      <input type="date" name="data" required>
+    </label>
+    <label class="campo campo-largo">Anúncio (opcional)
+      <select name="anuncio_id" id="anuncio_id">
+        <option value="">Métrica da campanha como um todo</option>
+        {% for a in anuncios %}
+        <option value="{{ a._id }}" data-campanha="{{ a.campanha_id }}">{{ a.titulo }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="campo">Impressões
+      <input type="text" inputmode="numeric" name="impressoes" placeholder="1000">
+    </label>
+    <label class="campo">Cliques
+      <input type="text" inputmode="numeric" name="cliques" placeholder="50">
+    </label>
+    <label class="campo">Visitas
+      <input type="text" inputmode="numeric" name="visitas" placeholder="40">
+    </label>
+    <label class="campo">Vendas
+      <input type="text" inputmode="numeric" name="vendas" placeholder="5">
+    </label>
+    <label class="campo">Receita atribuída (R$)
+      <input type="text" inputmode="decimal" name="receita_atribuida" placeholder="750,00">
+    </label>
+    <div class="acoes-form">
+      <button type="submit" class="botao">Registrar métrica</button>
+    </div>
+  </form>
+</details>
+{% else %}
+<section class="painel">
+  <div class="vazio">
+    <strong>Cadastre uma campanha primeiro</strong>
+    <p>Toda métrica é registrada dentro de uma campanha.</p>
+    <a class="botao" href="{{ url_for('tela_campanhas') }}">Ir para campanhas</a>
+  </div>
+</section>
+{% endif %}
+
+<section class="painel">
+  <div class="painel-topo"><h2>Métricas registradas</h2></div>
+
+  {% if metricas %}
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Campanha</th>
+          <th>Anúncio</th>
+          <th>Data</th>
+          <th class="num">Impressões</th>
+          <th class="num">Cliques</th>
+          <th class="num">Visitas</th>
+          <th class="num">Vendas</th>
+          <th class="num">Receita</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in metricas %}
+        <tr>
+          <td class="celula-titulo">{{ m.campanha_nome }}</td>
+          <td>{{ m.anuncio_titulo or "—" }}</td>
+          <td>{{ m.data|data_br }}</td>
+          <td class="num">{{ m.impressoes|numero }}</td>
+          <td class="num">{{ m.cliques|numero }}</td>
+          <td class="num">{{ m.visitas|numero }}</td>
+          <td class="num">{{ m.vendas|numero }}</td>
+          <td class="num">{{ m.receita_atribuida|brl }}</td>
+          <td class="acoes"><form method="POST" action="{{ url_for('excluir_metrica', registro_id=m._id) }}" onsubmit="return confirm('Excluir esta métrica? Os indicadores da campanha serão recalculados.')"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button type="submit" class="botao-link perigo">Excluir</button></form></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="vazio">
+    <strong>Nenhuma métrica registrada</strong>
+    <p>Os resultados registrados aparecem aqui.</p>
+  </div>
+  {% endif %}
+
+  <p class="rodape-api">Lista também disponível em JSON: <code>/api/metricas</code></p>
+</section>
+<script>
+  /* Mostra no campo "Anúncio" apenas os anúncios da campanha escolhida.
+     A validação de verdade continua no servidor. */
+  (function () {
+    var campanha = document.getElementById('campanha_id');
+    var anuncio = document.getElementById('anuncio_id');
+    if (!campanha || !anuncio) return;
+    function filtrar() {
+      Array.prototype.forEach.call(anuncio.options, function (o) {
+        if (!o.value) return;
+        var ok = !campanha.value || o.getAttribute('data-campanha') === campanha.value;
+        o.hidden = !ok;
+        o.disabled = !ok;
+        if (!ok && o.selected) anuncio.value = '';
+      });
+    }
+    campanha.addEventListener('change', filtrar);
+    filtrar();
+  })();
+</script>
+{% endblock %}

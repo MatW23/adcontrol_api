@@ -1,0 +1,16 @@
+{% extends "autenticacao.html" %}
+{% block titulo %}Entrar{% endblock %}
+{% block corpo %}
+<h1>Entrar</h1>
+<p class="acesso-texto">Acesse com o seu usuário e senha para ver os dados de publicidade.</p>
+<form method="POST" action="{{ url_for('login') }}" class="form-acesso"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <input type="hidden" name="proximo" value="{{ proximo }}">
+  <label class="campo">Usuário
+    <input type="text" name="usuario" autocomplete="username" autofocus required>
+  </label>
+  <label class="campo">Senha
+    <input type="password" name="senha" autocomplete="current-password" required>
+  </label>
+  <button type="submit" class="botao botao-cheio">Entrar</button>
+</form>
+{% endblock %}

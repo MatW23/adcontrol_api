@@ -1,0 +1,22 @@
+{# Filtros de campanha e periodo (RF08). Variaveis: acao, filtros, campanhas, visao (opcional) #}
+<form method="get" action="{{ acao }}" class="filtros">
+  {% if visao %}<input type="hidden" name="visao" value="{{ visao }}">{% endif %}
+  <label class="campo">Campanha
+    <select name="campanha_id">
+      <option value="">Todas as campanhas</option>
+      {% for c in campanhas %}
+      <option value="{{ c._id }}" {% if filtros.campanha_id == c._id|string %}selected{% endif %}>{{ c.nome }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="campo">De
+    <input type="date" name="de" value="{{ filtros.de }}">
+  </label>
+  <label class="campo">Até
+    <input type="date" name="ate" value="{{ filtros.ate }}">
+  </label>
+  <div class="filtros-acoes">
+    <button type="submit" class="botao">Filtrar</button>
+    {% if filtros.campanha_id or filtros.de or filtros.ate %}<a class="link-discreto" href="{{ acao }}">Limpar filtros</a>{% endif %}
+  </div>
+</form>

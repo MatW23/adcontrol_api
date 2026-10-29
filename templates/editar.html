@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }}{% endblock %}
+
+{% block conteudo %}
+<header class="pagina-topo">
+  <h1>{{ titulo }}</h1>
+  <p>Corrija os dados e salve. Os registros já feitos continuam ligados a este item.</p>
+</header>
+
+<section class="painel">
+  <form method="POST" action="" class="form-grade"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    {% for c in campos %}
+    <label class="campo {{ 'campo-largo' if c.largo }}">{{ c.rotulo }}
+      {% if c.tipo == 'select' %}
+      <select name="{{ c.nome }}">
+        {% for valor, rotulo in c.opcoes %}
+        <option value="{{ valor }}" {% if valor|string == c.valor|string %}selected{% endif %}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
+      {% else %}
+      <input type="{{ c.tipo }}" name="{{ c.nome }}" value="{{ c.valor }}">
+      {% endif %}
+    </label>
+    {% endfor %}
+    <div class="acoes-form">
+      <button type="submit" class="botao">Salvar alterações</button>
+      <a class="link-discreto link-cancelar" href="{{ voltar }}">Cancelar</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

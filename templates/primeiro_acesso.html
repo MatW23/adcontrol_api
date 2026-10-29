@@ -1,0 +1,21 @@
+{% extends "autenticacao.html" %}
+{% block titulo %}Primeiro acesso{% endblock %}
+{% block corpo %}
+<h1>Primeiro acesso</h1>
+<p class="acesso-texto">Ainda não existe nenhum usuário. Crie o usuário que vai administrar o sistema. Depois deste passo, só entra quem tiver usuário e senha.</p>
+<form method="POST" action="{{ url_for('primeiro_acesso') }}" class="form-acesso"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <label class="campo">Seu nome
+    <input type="text" name="nome" autocomplete="name" required>
+  </label>
+  <label class="campo">Nome de usuário
+    <input type="text" name="usuario" autocomplete="username" required>
+  </label>
+  <label class="campo">Senha (mínimo de 8 caracteres)
+    <input type="password" name="senha" autocomplete="new-password" minlength="8" required>
+  </label>
+  <label class="campo">Confirme a senha
+    <input type="password" name="confirmacao" autocomplete="new-password" minlength="8" required>
+  </label>
+  <button type="submit" class="botao botao-cheio">Criar acesso</button>
+</form>
+{% endblock %}
