@@ -21,6 +21,10 @@ Todos os requisitos funcionais RF01 a RF09 estão implementados. Também há a t
 adcontrol_api/
 ├── app.py              # rotas da API e das telas
 ├── analise.py          # cálculos: indicadores, séries, funil, gráficos (sem Flask/Mongo)
+├── banco.py            # conexão MongoDB e coleções
+├── especialista.py     # cálculo estimado da MPA e alertas por regras
+├── relatorios.py       # montagem e exportação dos relatórios
+├── render.yaml         # configuração de hospedagem no Render
 ├── requirements.txt    # dependências
 ├── tests/
 │   ├── rodar_testes.py  # testes automáticos (rodam sem MongoDB)
@@ -64,6 +68,19 @@ adcontrol_api/
 As fontes (Space Grotesk e IBM Plex Sans) vêm do Google Fonts: precisam de internet
 para aparecer; sem internet o sistema usa uma fonte padrão e continua funcionando.
 Opcional: defina `SECRET_KEY` (mesmo método do `MONGO_URI`) com um texto próprio.
+
+## Publicar na nuvem (Render + MongoDB Atlas)
+
+Uma configuração simples para este projeto é hospedar o Flask no Render e manter os dados no MongoDB Atlas. O repositório já inclui `render.yaml` para configurar o serviço.
+
+1. Envie o projeto para um repositório GitHub.
+2. No Atlas, crie um cluster e um **usuário de banco de dados** para a aplicação. Use uma senha exclusiva e guarde a URI de conexão; não a coloque no código nem no Git.
+3. No Render, crie um Web Service conectado ao repositório e configure pelo Blueprint `render.yaml`.
+4. No serviço, defina `MONGO_URI` com a URI do Atlas. O Render gera `SECRET_KEY`; `COOKIES_SEGUROS=1` já está configurado para HTTPS.
+5. Na lista de acesso de rede do Atlas, permita a conexão de saída do serviço Render. Para demonstrações, `0.0.0.0/0` é simples, mas permite tentativas de conexão de qualquer endereço; use senha forte e um usuário com acesso somente ao banco `adcontrol_web`. Em plano pago, prefira restringir a lista às faixas estáticas de saída da hospedagem.
+6. Após o deploy, abra a URL pública. Na primeira visita, crie o usuário do sistema. A rota `/health` permite ao Render verificar se a aplicação está respondendo.
+
+O plano gratuito do Render pode suspender o site após 15 minutos sem acessos, e a próxima visita pode demorar para reativá-lo. O cluster gratuito do Atlas também tem limites e pode pausar após 30 dias sem conexões. São opções para aprendizado e demonstrações, não para um serviço que precise de disponibilidade contínua.
 
 ## Testando a API diretamente (Postman, Insomnia ou navegador)
 - Listar campanhas: `GET http://127.0.0.1:5000/api/campanhas`

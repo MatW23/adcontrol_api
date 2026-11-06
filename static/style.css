@@ -271,6 +271,7 @@ a { color: var(--petroleo); }
 }
 .aviso-sucesso { background: var(--sucesso-fundo); border-color: var(--sucesso-borda); color: var(--sucesso-texto); }
 .aviso-erro { background: var(--erro-fundo); border-color: var(--erro-borda); color: var(--erro-texto); }
+.aviso-atencao { background: #FFF6DF; border-color: #F1D38A; color: #674A00; }
 
 /* ---------- tabelas ---------- */
 

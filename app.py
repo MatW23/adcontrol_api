@@ -28,11 +28,16 @@ from datetime import datetime
 
 from flask import Flask, Response, render_template, request, redirect, session, url_for, jsonify, flash
 from werkzeug.security import check_password_hash, generate_password_hash
-from pymongo import MongoClient
 from bson.objectid import ObjectId
 from bson.errors import InvalidId
 
 import relatorios
+from banco import (
+    MONGO_URI, cliente as client, banco as db, campanhas_collection,
+    produtos_collection, anuncios_collection, investimentos_collection,
+    metricas_collection, usuarios_collection,
+)
+from especialista import analisar as analisar_desempenho
 from analise import (
     calcular_resumo, comparar_periodos, dividir, geometria_linhas,
     montar_funil, no_periodo, serie_diaria,
@@ -40,14 +45,15 @@ from analise import (
 
 app = Flask(__name__)
 
+
+@app.route("/health")
+def health():
+    """Verificação simples para a plataforma de hospedagem."""
+    return jsonify({"status": "ok"})
+
 # Chave usada pelo Flask para guardar as mensagens de aviso da tela.
 # Em uso real, defina a variavel de ambiente SECRET_KEY com um valor proprio.
 app.secret_key = os.environ.get("SECRET_KEY", "dev-adcontrol-troque-esta-chave")
-
-# Endereco do MongoDB. Por padrao aponta para um MongoDB local.
-# Para usar o MongoDB Atlas (gratuito, na nuvem), defina a variavel de
-# ambiente MONGO_URI com a string de conexao fornecida pelo Atlas.
-MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/adcontrol_web")
 
 # ---------- SEGURANCA (RNF03) ----------
 # Os dois recursos ficam ligados por padrao. Os testes automaticos desligam para cada bloco.
@@ -59,19 +65,9 @@ app.config.update(
     SESSION_COOKIE_SECURE=os.environ.get("COOKIES_SEGUROS") == "1",   # use 1 quando o site estiver em https
 )
 
-client = MongoClient(MONGO_URI)
-db = client.get_default_database()
-campanhas_collection = db["campanhas"]
-produtos_collection = db["produtos"]
-anuncios_collection = db["anuncios"]
-investimentos_collection = db["investimentos"]
-metricas_collection = db["metricas"]
-usuarios_collection = db["usuarios"]
-
-
 # ---------- LOGIN, SESSAO E CSRF (RNF03) ----------
 
-ENDPOINTS_LIVRES = {"static", "login", "primeiro_acesso"}
+ENDPOINTS_LIVRES = {"static", "login", "primeiro_acesso", "health"}
 TENTATIVAS_LOGIN = {}          # (usuario, ip) -> (quantidade, instante da primeira falha)
 MAX_TENTATIVAS, JANELA_SEGUNDOS = 5, 300
 
@@ -533,6 +529,7 @@ def montar_dashboard(campanha_id, data_ini, data_fim):
     anuncios = {str(a["_id"]): a for a in anuncios_collection.find()}
     nomes_produto = {str(p["_id"]): p.get("nome") for p in produtos_collection.find()}
 
+    por = {}
     if campanha_id:
         # Com uma campanha escolhida, o que interessa e qual anuncio rendeu mais.
         receita = {}
@@ -545,8 +542,9 @@ def montar_dashboard(campanha_id, data_ini, data_fim):
         ]
         itens.sort(key=lambda i: i["receita"], reverse=True)
         barras = {"titulo": "Receita por anúncio", "duplo": False, "itens": escalar_barras(itens, ["receita"])}
+        item = {"investido": resumo["investido"], "receita": resumo["receita"]}
+        por[campanha_id] = item
     else:
-        por = {}
         for i in investimentos:
             por.setdefault(i.get("campanha_id"), {"investido": 0.0, "receita": 0.0})["investido"] += i.get("investimento", 0) or 0
         for m in metricas:
@@ -559,41 +557,10 @@ def montar_dashboard(campanha_id, data_ini, data_fim):
         barras = {"titulo": "Investido x receita por campanha", "duplo": True,
                   "itens": escalar_barras(itens, ["investido", "receita"])}
 
-    por_produto = {}
-    for m in metricas:
-        anuncio = anuncios.get(m.get("anuncio_id"))
-        if anuncio:
-            nome = nomes_produto.get(anuncio.get("produto_id"), "(produto removido)")
-            p = por_produto.setdefault(nome, {"receita": 0.0, "vendas": 0, "campanha_id": m.get("campanha_id")})
-            p["receita"] += m.get("receita_atribuida", 0) or 0
-            p["vendas"] += m.get("vendas", 0) or 0
-    docs_produtos = {p.get("nome"): p for p in produtos_collection.find()}
-    receita_total = sum(p["receita"] for p in por_produto.values())
-    for nome, p in por_produto.items():
-        produto = docs_produtos.get(nome, {})
-        custo_operacional = p["vendas"] * ((produto.get("custo_produto", 0) or 0) + (produto.get("frete_vendedor", 0) or 0))
-        custos_percentuais = p["receita"] * ((produto.get("taxas_pct", 0) or 0) + (produto.get("impostos_pct", 0) or 0)) / 100
-        # Sem campanha selecionada, reparte o investimento proporcionalmente à receita atribuída.
-        verba_ads = resumo["investido"] * dividir(p["receita"], receita_total)
-        p["mpa"] = round(p["receita"] - custo_operacional - custos_percentuais - verba_ads, 2)
-        p["custos"] = round(custo_operacional + custos_percentuais + verba_ads, 2)
-    produtos = [{"nome": k, **v} for k, v in por_produto.items()]
-    produtos.sort(key=lambda i: i["mpa"], reverse=True)
-    alertas = []
-    if not campanha_id:
-        for cid, item in por.items():
-            if item["investido"] and item["receita"] < item["investido"]:
-                alertas.append({"nivel": "critico", "titulo": f"Retorno baixo: {nomes_campanha.get(cid, 'Campanha')}",
-                                "mensagem": f"ROAS {item['receita'] / item['investido']:.2f}x; receita atribuída não cobre o investimento."})
-    if not alertas:
-        alertas.append({"nivel": "ok", "titulo": "Sem alertas de campanha", "mensagem": "Nenhuma campanha com receita abaixo do investimento neste filtro."})
-    for produto in produtos:
-        if produto["mpa"] < 0:
-            alertas.append({"nivel": "critico", "titulo": f"MPA negativa: {produto['nome']}",
-                            "mensagem": f"Margem pós-anúncios estimada em R$ {produto['mpa']:.2f}. Confira custo, frete, taxas, impostos e atribuição das vendas."})
-        elif produto["mpa"] <= produto["receita"] * 0.1:
-            alertas.append({"nivel": "atencao", "titulo": f"Margem baixa: {produto['nome']}",
-                            "mensagem": f"MPA estimada em R$ {produto['mpa']:.2f}, até 10% da receita atribuída."})
+    produtos, alertas = analisar_desempenho(
+        investimentos, metricas, list(anuncios_collection.find()),
+        list(produtos_collection.find()), list(campanhas_collection.find()),
+    )
 
     return {
         "resumo": resumo,

@@ -16,7 +16,7 @@
 
 <section class="painel">
   <div class="painel-topo"><h2>Alertas do sistema especialista</h2></div>
-  {% for alerta in alertas_especialista %}<div class="aviso aviso-{{ 'erro' if alerta.nivel == 'critico' else 'sucesso' }}"><strong>{{ alerta.titulo }}</strong><br>{{ alerta.mensagem }}</div>{% endfor %}
+  {% for alerta in alertas_especialista %}<div class="aviso aviso-{{ 'erro' if alerta.nivel == 'critico' else 'atencao' if alerta.nivel == 'atencao' else 'sucesso' }}"><strong>{{ alerta.titulo }}</strong><br>{{ alerta.mensagem }}</div>{% endfor %}
   <p class="note">Regras: ROAS abaixo de 1; MPA negativa; ou MPA de até 10% da receita. MPA estima receita menos custo do produto, frete por venda, taxas, impostos e investimento em anúncios rateado pela receita. Para o filtro de período, essa estimativa usa os custos cadastrados atualmente no produto. Alertas são informativos e não alteram campanhas.</p>
 </section>
 
