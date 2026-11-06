@@ -14,6 +14,12 @@
   {% include "_filtros.html" %}
 </section>
 
+<section class="painel">
+  <div class="painel-topo"><h2>Alertas do sistema especialista</h2></div>
+  {% for alerta in alertas_especialista %}<div class="aviso aviso-{{ 'erro' if alerta.nivel == 'critico' else 'sucesso' }}"><strong>{{ alerta.titulo }}</strong><br>{{ alerta.mensagem }}</div>{% endfor %}
+  <p class="note">Regras: ROAS abaixo de 1; MPA negativa; ou MPA de até 10% da receita. MPA estima receita menos custo do produto, frete por venda, taxas, impostos e investimento em anúncios rateado pela receita. Para o filtro de período, essa estimativa usa os custos cadastrados atualmente no produto. Alertas são informativos e não alteram campanhas.</p>
+</section>
+
 {% if not tem_dados %}
 <section class="painel">
   <div class="vazio">
@@ -139,18 +145,18 @@
 </div>
 
 <section class="painel">
-  <div class="painel-topo"><h2>Receita por produto</h2></div>
+  <div class="painel-topo"><h2>MPA estimada por produto</h2></div>
   <div class="painel-corpo">
     {% if produtos %}
     <ul class="barras">
       {% for p in produtos %}
       <li>
         <div class="barras-nome">{{ p.nome }}</div>
-        <div class="barras-linha">{{ barra(p.w_receita, 'receita') }}<span class="barras-valor">{{ p.receita|brl }}</span></div>
+        <div class="barras-linha">{{ barra(p.w_mpa, 'receita') }}<span class="barras-valor">{{ p.mpa|brl }} <small>MPA · receita {{ p.receita|brl }}</small></span></div>
       </li>
       {% endfor %}
     </ul>
-    <p class="note">Considera apenas métricas registradas em um anúncio, pois é o anúncio que liga a venda ao produto.</p>
+    <p class="note">Considera métricas vinculadas a anúncios. Taxas/impostos incidem sobre receita; custo/frete multiplicados por vendas. Investimento é rateado proporcionalmente à receita.</p>
     {% else %}
     <p class="note">Nenhuma métrica deste filtro foi registrada em um anúncio de produto.</p>
     {% endif %}

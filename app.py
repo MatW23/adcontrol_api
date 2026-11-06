@@ -383,6 +383,10 @@ def produto_para_dict(produto):
         "nome": produto.get("nome"),
         "categoria": produto.get("categoria"),
         "preco_unitario": produto.get("preco_unitario"),
+        "custo_produto": produto.get("custo_produto", 0),
+        "frete_vendedor": produto.get("frete_vendedor", 0),
+        "taxas_pct": produto.get("taxas_pct", 0),
+        "impostos_pct": produto.get("impostos_pct", 0),
     }
 
 
@@ -560,9 +564,36 @@ def montar_dashboard(campanha_id, data_ini, data_fim):
         anuncio = anuncios.get(m.get("anuncio_id"))
         if anuncio:
             nome = nomes_produto.get(anuncio.get("produto_id"), "(produto removido)")
-            por_produto[nome] = por_produto.get(nome, 0) + (m.get("receita_atribuida") or 0)
-    produtos = [{"nome": k, "receita": v} for k, v in por_produto.items()]
-    produtos.sort(key=lambda i: i["receita"], reverse=True)
+            p = por_produto.setdefault(nome, {"receita": 0.0, "vendas": 0, "campanha_id": m.get("campanha_id")})
+            p["receita"] += m.get("receita_atribuida", 0) or 0
+            p["vendas"] += m.get("vendas", 0) or 0
+    docs_produtos = {p.get("nome"): p for p in produtos_collection.find()}
+    receita_total = sum(p["receita"] for p in por_produto.values())
+    for nome, p in por_produto.items():
+        produto = docs_produtos.get(nome, {})
+        custo_operacional = p["vendas"] * ((produto.get("custo_produto", 0) or 0) + (produto.get("frete_vendedor", 0) or 0))
+        custos_percentuais = p["receita"] * ((produto.get("taxas_pct", 0) or 0) + (produto.get("impostos_pct", 0) or 0)) / 100
+        # Sem campanha selecionada, reparte o investimento proporcionalmente à receita atribuída.
+        verba_ads = resumo["investido"] * dividir(p["receita"], receita_total)
+        p["mpa"] = round(p["receita"] - custo_operacional - custos_percentuais - verba_ads, 2)
+        p["custos"] = round(custo_operacional + custos_percentuais + verba_ads, 2)
+    produtos = [{"nome": k, **v} for k, v in por_produto.items()]
+    produtos.sort(key=lambda i: i["mpa"], reverse=True)
+    alertas = []
+    if not campanha_id:
+        for cid, item in por.items():
+            if item["investido"] and item["receita"] < item["investido"]:
+                alertas.append({"nivel": "critico", "titulo": f"Retorno baixo: {nomes_campanha.get(cid, 'Campanha')}",
+                                "mensagem": f"ROAS {item['receita'] / item['investido']:.2f}x; receita atribuída não cobre o investimento."})
+    if not alertas:
+        alertas.append({"nivel": "ok", "titulo": "Sem alertas de campanha", "mensagem": "Nenhuma campanha com receita abaixo do investimento neste filtro."})
+    for produto in produtos:
+        if produto["mpa"] < 0:
+            alertas.append({"nivel": "critico", "titulo": f"MPA negativa: {produto['nome']}",
+                            "mensagem": f"Margem pós-anúncios estimada em R$ {produto['mpa']:.2f}. Confira custo, frete, taxas, impostos e atribuição das vendas."})
+        elif produto["mpa"] <= produto["receita"] * 0.1:
+            alertas.append({"nivel": "atencao", "titulo": f"Margem baixa: {produto['nome']}",
+                            "mensagem": f"MPA estimada em R$ {produto['mpa']:.2f}, até 10% da receita atribuída."})
 
     return {
         "resumo": resumo,
@@ -571,6 +602,7 @@ def montar_dashboard(campanha_id, data_ini, data_fim):
         "funil": montar_funil(resumo),
         "barras": barras,
         "produtos": escalar_barras(produtos, ["receita"]),
+        "alertas_especialista": alertas,
         "tem_dados": bool(investimentos or metricas),
     }
 
@@ -725,16 +757,21 @@ def criar_produto_tela():
     nome = request.form.get("nome", "").strip()
     categoria = request.form.get("categoria", "").strip()
     preco = para_numero(request.form.get("preco_unitario"))
+    custo = para_numero(request.form.get("custo_produto"))
+    frete = para_numero(request.form.get("frete_vendedor"))
+    taxas = para_numero(request.form.get("taxas_pct"))
+    impostos = para_numero(request.form.get("impostos_pct"))
 
     if not nome:
         flash("Informe o nome do produto.", "erro")
-    elif preco is None:
+    elif any(v is None for v in (preco, custo, frete, taxas, impostos)) or taxas > 100 or impostos > 100:
         flash("Preço inválido. Use apenas números, com vírgula ou ponto para os centavos (ex: 89,90).", "erro")
     else:
         produtos_collection.insert_one({
             "nome": nome,
             "categoria": categoria,
             "preco_unitario": preco,
+            "custo_produto": custo, "frete_vendedor": frete, "taxas_pct": taxas, "impostos_pct": impostos,
             "criado_em": datetime.utcnow(),
         })
         flash(f"Produto “{nome}” cadastrado.", "sucesso")
@@ -998,17 +1035,22 @@ def editar_produto(produto_id):
         return redirect(url_for("tela_produtos"))
 
     valores = {"nome": produto.get("nome", ""), "categoria": produto.get("categoria", ""),
-               "preco_unitario": numero_para_campo(produto.get("preco_unitario"))}
+               "preco_unitario": numero_para_campo(produto.get("preco_unitario")),
+               "custo_produto": numero_para_campo(produto.get("custo_produto")), "frete_vendedor": numero_para_campo(produto.get("frete_vendedor")),
+               "taxas_pct": numero_para_campo(produto.get("taxas_pct")), "impostos_pct": numero_para_campo(produto.get("impostos_pct"))}
     if request.method == "POST":
         valores = {k: request.form.get(k, "").strip() for k in valores}
         preco = para_numero(valores["preco_unitario"])
+        custo = para_numero(valores["custo_produto"]); frete = para_numero(valores["frete_vendedor"])
+        taxas = para_numero(valores["taxas_pct"]); impostos = para_numero(valores["impostos_pct"])
         if not valores["nome"]:
             flash("Informe o nome do produto.", "erro")
-        elif preco is None:
+        elif any(v is None for v in (preco, custo, frete, taxas, impostos)) or taxas > 100 or impostos > 100:
             flash("Preço inválido. Use apenas números, com vírgula ou ponto para os centavos (ex: 89,90).", "erro")
         else:
             produtos_collection.update_one({"_id": produto["_id"]}, {"$set": {
-                "nome": valores["nome"], "categoria": valores["categoria"], "preco_unitario": preco}})
+                "nome": valores["nome"], "categoria": valores["categoria"], "preco_unitario": preco,
+                "custo_produto": custo, "frete_vendedor": frete, "taxas_pct": taxas, "impostos_pct": impostos}})
             flash(f"Produto “{valores['nome']}” atualizado.", "sucesso")
             return redirect(url_for("tela_produtos"))
 
@@ -1016,6 +1058,7 @@ def editar_produto(produto_id):
         {"nome": "nome", "rotulo": "Nome do produto", "tipo": "text", "valor": valores["nome"], "largo": True},
         {"nome": "categoria", "rotulo": "Categoria", "tipo": "text", "valor": valores["categoria"]},
         {"nome": "preco_unitario", "rotulo": "Preço unitário (R$)", "tipo": "text", "valor": valores["preco_unitario"]},
+        *[{"nome": k, "rotulo": label, "tipo": "text", "valor": valores[k]} for k, label in [("custo_produto", "Custo do produto por unidade (R$)"), ("frete_vendedor", "Frete pago pelo vendedor por unidade (R$)"), ("taxas_pct", "Taxas (%)"), ("impostos_pct", "Impostos (%)")]],
     ]
     return pagina_edicao("Editar produto", url_for("tela_produtos"), campos)
 
@@ -1220,8 +1263,15 @@ def criar_produto_api():
         "nome": nome,
         "categoria": dados.get("categoria", ""),
         "preco_unitario": preco,
+        "custo_produto": para_numero(dados.get("custo_produto"), 0),
+        "frete_vendedor": para_numero(dados.get("frete_vendedor"), 0),
+        "taxas_pct": para_numero(dados.get("taxas_pct"), 0),
+        "impostos_pct": para_numero(dados.get("impostos_pct"), 0),
         "criado_em": datetime.utcnow(),
     }
+    for campo in ("custo_produto", "frete_vendedor", "taxas_pct", "impostos_pct"):
+        if novo_produto[campo] is None or (campo.endswith("_pct") and novo_produto[campo] > 100):
+            return jsonify({"erro": f"{campo} deve ser um número não negativo; percentuais até 100"}), 400
     resultado = produtos_collection.insert_one(novo_produto)
     novo_produto["_id"] = resultado.inserted_id
     return jsonify(produto_para_dict(novo_produto)), 201
