@@ -20,6 +20,7 @@ from analise import (                # noqa: E402
     calcular_resumo, comparar_periodos, geometria_linhas, montar_funil,
     no_periodo, serie_diaria, teto_agradavel, abreviar_brl,
 )
+from especialista import analisar as analisar_mpa  # noqa: E402
 
 c = A.app.test_client()
 
@@ -42,6 +43,30 @@ assert (r["ctr"], r["cpc"], r["taxa_conversao"], r["custo_por_venda"], r["roas"]
 z = calcular_resumo([], [])
 assert z["roas"] == 0 and z["ctr"] == 0 and z["cpc"] == 0 and z["custo_por_venda"] == 0
 secao("5 indicadores conferidos a mao e divisao por zero (RNF09)")
+mpa, alertas_mpa = analisar_mpa(
+    [{"campanha_id": "c1", "investimento": 40}, {"campanha_id": "c2", "investimento": 100}],
+    [
+        {"campanha_id": "c1", "anuncio_id": "a1", "receita_atribuida": 100, "vendas": 2},
+        {"campanha_id": "c1", "anuncio_id": None, "receita_atribuida": 100, "vendas": 0},
+        {"campanha_id": "c2", "anuncio_id": "a2", "receita_atribuida": 100, "vendas": 1},
+    ],
+    [{"_id": "a1", "produto_id": "p1"}, {"_id": "a2", "produto_id": "p2"}],
+    [
+        {"_id": "p1", "nome": "Produto 1", "custo_produto": 10, "frete_vendedor": 0},
+        {"_id": "p2", "nome": "Produto 2", "custo_produto": 50, "frete_vendedor": 0},
+    ],
+    [{"_id": "c1", "nome": "Campanha 1"}, {"_id": "c2", "nome": "Campanha 2"}],
+)
+mpa_por_nome = {item["nome"]: item["mpa"] for item in mpa}
+assert mpa_por_nome == {"Produto 1": 60.0, "Produto 2": -50.0}, mpa_por_nome
+assert any("MPA negativa" in item["titulo"] for item in alertas_mpa)
+_, alerta_12 = analisar_mpa(
+    [], [{"campanha_id": "c", "anuncio_id": "a", "receita_atribuida": 100, "vendas": 1}],
+    [{"_id": "a", "produto_id": "p"}],
+    [{"_id": "p", "nome": "Margem 12", "custo_produto": 88}], [{"_id": "c", "nome": "Campanha"}],
+)
+assert any(item["titulo"] == "Margem baixa: Margem 12" for item in alerta_12), alerta_12
+secao("MPA rateada dentro da campanha e alerta no limite de 12%")
 assert no_periodo({"data": "2026-11-20"}, "2026-11-01", "2026-11-30")
 assert not no_periodo({"data": "2026-12-01"}, "2026-11-01", "2026-11-30")
 assert not no_periodo({"data": ""}, "2026-11-01", "")
@@ -69,7 +94,7 @@ assert A.para_numero("nan") is None and A.para_numero("") == 0.0
 secao("padrao brasileiro e numeros invalidos")
 
 print("\n== Telas abrem (vazias) ==")
-rotas = ["/", "/dashboard", "/comparar", "/comparar?visao=anuncios", "/comparar?visao=periodos", "/historico",
+rotas = ["/", "/health", "/dashboard", "/comparar", "/comparar?visao=anuncios", "/comparar?visao=periodos", "/historico",
          "/campanhas", "/anuncios", "/produtos", "/investimentos", "/metricas", "/api/dashboard", "/api/historico"]
 for rota in rotas:
     assert c.get(rota).status_code == 200, rota
@@ -126,6 +151,7 @@ def met(cid, aid, d, i, cl, vi, ve, rc):
 
 assert "cliques não podem ser maiores" in html(met(bf, "", "2026-11-21", 100, 200, 10, 1, "10"))
 assert "Valor inválido em vendas" in html(met(bf, "", "2026-11-21", 100, 20, 10, "abc", "10"))
+assert "precisa ser um número inteiro" in html(met(bf, "", "2026-11-21", 100, 20, 10, "1,5", "10"))
 assert "não pertence a esta campanha" in html(met(bf, an["Fone presente"], "2026-11-21", 100, 20, 10, 1, "10"))
 assert "Anúncio inválido" in html(met(bf, "naoexiste", "2026-11-21", 100, 20, 10, 1, "10"))
 assert not c.get("/api/metricas").get_json()

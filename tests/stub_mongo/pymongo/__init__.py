@@ -52,8 +52,17 @@ class FakeDB(dict):
             super().__setitem__(name, FakeCollection())
         return super().__getitem__(name)
 
+class FakeAdmin:
+    def command(self, name):
+        if name != "ping":
+            raise ValueError("Comando não suportado pelo banco de teste")
+        return {"ok": 1}
+
 class MongoClient:
     def __init__(self, *a, **k):
         self._db = FakeDB()
     def get_default_database(self):
         return self._db
+    @property
+    def admin(self):
+        return FakeAdmin()

@@ -48,12 +48,20 @@ app = Flask(__name__)
 
 @app.route("/health")
 def health():
-    """Verificação simples para a plataforma de hospedagem."""
-    return jsonify({"status": "ok"})
+    """Confere se o app consegue alcançar o banco antes de receber tráfego."""
+    try:
+        client.admin.command("ping")
+    except Exception:
+        return jsonify({"status": "indisponível", "banco": "sem conexão"}), 503
+    return jsonify({"status": "ok", "banco": "conectado"})
 
 # Chave usada pelo Flask para guardar as mensagens de aviso da tela.
 # Em uso real, defina a variavel de ambiente SECRET_KEY com um valor proprio.
-app.secret_key = os.environ.get("SECRET_KEY", "dev-adcontrol-troque-esta-chave")
+app.secret_key = os.environ.get("SECRET_KEY")
+if not app.secret_key:
+    if os.environ.get("RENDER_SERVICE_ID"):
+        raise RuntimeError("Configure SECRET_KEY nas variáveis de ambiente do Render.")
+    app.secret_key = "dev-adcontrol-troque-esta-chave"
 
 # ---------- SEGURANCA (RNF03) ----------
 # Os dois recursos ficam ligados por padrao. Os testes automaticos desligam para cada bloco.
@@ -325,6 +333,8 @@ def montar_metrica(campanha_id, data, brutos):
         valor = para_numero(brutos.get(campo))
         if valor is None:
             return None, f"Valor inválido em {rotulo}. Use apenas números positivos."
+        if not valor.is_integer():
+            return None, f"O valor de {rotulo} precisa ser um número inteiro."
         doc[campo] = int(valor)
 
     # O anuncio e opcional, mas se vier precisa existir e pertencer a mesma campanha.

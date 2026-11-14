@@ -2,10 +2,10 @@
 
 Sistema web de gestão de publicidade da Presente na Web. Módulos prontos:
 **Campanhas (RF02)**, **Anúncios (RF03)**, **Produtos (RF04)**, **Investimentos (RF01)**,
-**Métricas (RF05)** e **Indicadores calculados automaticamente (RF06)**,
+**Métricas (RF05)**, **Indicadores calculados automaticamente (RF06)** e **Margem Pós-Anúncios (RF10)**,
 mais **Dashboard com gráficos (RF07)**, **filtros por campanha e período (RF08)**,
 **comparação de campanhas, anúncios e períodos (RF09)** e **Histórico** dia a dia.
-Todos os requisitos funcionais RF01 a RF09 estão implementados. Também há a tela de **Indicadores**,
+Os requisitos RF01 a RF09 e a regra RF10 estão implementados. Também há a tela de **Indicadores**,
 **Relatórios gerenciais** com exportação CSV (Excel e Power BI), edição de cadastros e **acesso restrito por login** (RNF03).
 
 ## O que já tem
@@ -15,6 +15,11 @@ Todos os requisitos funcionais RF01 a RF09 estão implementados. Também há a t
 - Valores no padrão brasileiro (R$ 1.234,50 e datas dd/mm/aaaa); os campos aceitam vírgula ou ponto
 - Validações: campos numéricos, período da campanha, cliques não podem passar das impressões, anúncio precisa pertencer à campanha da métrica
 - Desempenho individual de cada anúncio e total por produto (soma dos anúncios do produto)
+- MPA estimada por produto: receita atribuída menos custo do produto e frete por unidade vendida, percentuais de taxas/impostos e parcela do investimento da campanha
+
+## Regra de negócio RF10 — Margem Pós-Anúncios (MPA)
+
+Para cada produto, a MPA é calculada em reais: `receita atribuída − custo do produto vendido − frete do vendedor − taxas − impostos − investimento em anúncios rateado`. O investimento de uma campanha é distribuído entre seus produtos proporcionalmente à receita atribuída de cada produto sobre a receita total da campanha; receitas sem anúncio associado não são transferidas para outros produtos. O sistema alerta quando a MPA é negativa ou é igual ou inferior a 12% da receita atribuída. É uma estimativa gerencial com os custos cadastrados atualmente no produto, não uma apuração contábil histórica.
 
 ## Estrutura de pastas
 ```
