@@ -133,3 +133,5 @@ MongoDB real rodando — faça isso antes de apresentar para a turma.
 - **Exportar CSV:** cada relatório tem seu botão, e há dois arquivos de dados brutos (métricas e investimentos) para análises estatísticas.
   O arquivo usa ponto e vírgula, decimais com vírgula e UTF-8 com BOM, que o Excel em português abre direto.
 - **Imprimir ou salvar em PDF** usa a impressão do navegador, com layout próprio para papel.
+
+oimatheus
