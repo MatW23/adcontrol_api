@@ -682,7 +682,10 @@ def home():
     recentes = sorted(
         campanhas, key=lambda c: c.get("criado_em") or datetime.min, reverse=True
     )[:5]
-    return render_template("index.html", resumo=resumo, recentes=recentes)
+    return render_template(
+        "index.html", resumo=resumo, recentes=recentes,
+        orientacoes=orientacoes_da_aba("visao_geral"),
+    )
 
 
 @app.route("/campanhas")

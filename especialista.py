@@ -112,8 +112,8 @@ def orientar(aba, campanhas, produtos_mpa, investimentos, metricas, anuncios):
             dicas.append({"nivel": "critico", "titulo": f"Revise {c.get('nome', 'a campanha')}", "mensagem": f"ROAS {c.get('roas', 0):.2f}x: a receita registrada está abaixo do investimento."})
         for c in estouradas[:3]:
             dicas.append({"nivel": "atencao", "titulo": f"Orçamento excedido: {c.get('nome', 'campanha')}", "mensagem": "O investimento acumulado passou do orçamento planejado."})
-        if sem_metricas:
-            dicas.append({"nivel": "atencao", "titulo": "Faltam métricas", "mensagem": f"{len(sem_metricas)} campanha(s) com investimento não têm impressões registradas; confira se os dados foram importados."})
+        for c in sem_metricas[:3]:
+            dicas.append({"nivel": "atencao", "titulo": f"Confira as métricas de {c.get('nome', 'campanha')}", "mensagem": "Há investimento registrado, mas nenhuma impressão. Confira se as métricas foram lançadas."})
         if not dicas:
             dicas.append({"nivel": "ok", "titulo": "Campanhas sem alertas pelas regras atuais", "mensagem": "Nenhuma campanha investida está abaixo do ROAS 1 ou acima do orçamento."})
 
@@ -133,13 +133,13 @@ def orientar(aba, campanhas, produtos_mpa, investimentos, metricas, anuncios):
     elif aba == "investimentos":
         estouradas = [c for c in campanhas if (c.get("orcamento_planejado", 0) or 0) > 0 and (c.get("total_investido", 0) or 0) > c.get("orcamento_planejado", 0)]
         perto = [c for c in campanhas if (c.get("orcamento_planejado", 0) or 0) > 0 and 0.8 <= (c.get("total_investido", 0) or 0) / c["orcamento_planejado"] <= 1]
-        if estouradas:
-            dicas.append({"nivel": "critico", "titulo": "Há campanha acima do orçamento", "mensagem": f"{len(estouradas)} campanha(s) ultrapassaram o limite planejado."})
-        if perto:
-            dicas.append({"nivel": "atencao", "titulo": "Orçamento perto do limite", "mensagem": f"{len(perto)} campanha(s) já usaram ao menos 80% do orçamento."})
+        for c in estouradas[:3]:
+            dicas.append({"nivel": "critico", "titulo": f"Orçamento excedido: {c.get('nome', 'campanha')}", "mensagem": f"Investido {c.get('total_investido', 0):.2f} de {c.get('orcamento_planejado', 0):.2f} planejados."})
+        for c in perto[:3]:
+            dicas.append({"nivel": "atencao", "titulo": f"Orçamento quase no limite: {c.get('nome', 'campanha')}", "mensagem": f"Já foram usados {c.get('total_investido', 0):.2f} de {c.get('orcamento_planejado', 0):.2f} planejados."})
         sem_verba = [c for c in campanhas if c.get("status") == "ativa" and not (c.get("total_investido", 0) or 0)]
-        if sem_verba:
-            dicas.append({"nivel": "atencao", "titulo": "Campanha ativa sem investimento", "mensagem": f"{len(sem_verba)} campanha(s) ativa(s) ainda não têm investimento registrado."})
+        for c in sem_verba[:3]:
+            dicas.append({"nivel": "atencao", "titulo": f"Campanha ativa sem investimento: {c.get('nome', 'campanha')}", "mensagem": "Ainda não há investimento registrado para esta campanha."})
         if not dicas:
             dicas.append({"nivel": "ok", "titulo": "Orçamentos dentro dos limites", "mensagem": "Nenhum orçamento ultrapassado ou acima de 80% foi encontrado."})
 
@@ -185,6 +185,16 @@ def orientar(aba, campanhas, produtos_mpa, investimentos, metricas, anuncios):
         if not dicas:
             dicas.append({"nivel": "atencao", "titulo": "Ainda não há base suficiente para comparar retorno", "mensagem": "Registre investimentos e métricas para que o ROAS comparativo seja calculado."})
 
+    elif aba == "visao_geral":
+        com_gasto = [c for c in campanhas if (c.get("total_investido", 0) or 0) > 0]
+        abaixo = sorted((c for c in com_gasto if (c.get("roas", 0) or 0) < 1), key=lambda c: c.get("roas", 0) or 0)
+        for c in abaixo[:3]:
+            dicas.append({"nivel": "critico", "titulo": f"Revise a campanha {c.get('nome', 'sem nome')}", "mensagem": f"ROAS de {c.get('roas', 0):.2f}x: receita atribuída abaixo do investimento."})
+        margem_baixa = [p for p in produtos_mpa if p["receita"] > 0 and p["mpa"] <= p["receita"] * 0.12]
+        for p in margem_baixa[:3]:
+            dicas.append({"nivel": "atencao" if p["mpa"] >= 0 else "critico", "titulo": f"Confira a margem de {p['nome']}", "mensagem": f"MPA estimada em R$ {p['mpa']:.2f} sobre R$ {p['receita']:.2f} de receita."})
+        if not dicas:
+            dicas.append({"nivel": "ok", "titulo": "Visão geral sem alertas", "mensagem": "Nenhuma campanha com ROAS abaixo de 1 ou produto com MPA até 12% foi identificado."})
     else:
         dicas.append({"nivel": "ok", "titulo": "Assistente do AdControl", "mensagem": "As recomendações usam regras transparentes sobre os dados registrados; revise os cadastros para melhorar a precisão."})
 
