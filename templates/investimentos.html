@@ -8,6 +8,8 @@
   <p>Registre quanto foi investido em cada campanha. Os indicadores são recalculados na hora.</p>
 </header>
 
+{% include "_assistente.html" %}
+
 {% if campanhas %}
 <details class="painel formulario" {% if not investimentos or tem_erro %}open{% endif %}>
   <summary>Novo investimento</summary>

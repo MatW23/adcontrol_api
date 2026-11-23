@@ -14,6 +14,8 @@
   <button type="button" class="botao-secundario nao-imprimir" onclick="window.print()">Imprimir ou salvar em PDF</button>
 </header>
 
+{% include "_assistente.html" %}
+
 <section class="painel painel-filtros nao-imprimir">
   {% set acao = url_for('tela_relatorios') %}
   {% include "_filtros.html" %}

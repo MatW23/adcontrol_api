@@ -55,6 +55,7 @@ def analisar(investimentos, metricas, anuncios, produtos, campanhas):
             total = resultados.setdefault(produto_id, {
                 "nome": item["nome"], "receita": 0.0, "vendas": 0,
                 "custo_unidades": 0.0, "custos_percentuais": 0.0, "verba_ads": 0.0,
+                "custo_produto": produto.get("custo_produto", 0) or 0,
             })
             for campo in ("receita", "vendas", "custo_unidades", "custos_percentuais", "verba_ads"):
                 total[campo] += item[campo]
@@ -97,3 +98,94 @@ def analisar(investimentos, metricas, anuncios, produtos, campanhas):
             "mensagem": "Os dados não indicam ROAS abaixo de 1 nem MPA até 12% da receita.",
         })
     return sorted(resultados.values(), key=lambda item: item["mpa"], reverse=True), alertas
+
+
+def orientar(aba, campanhas, produtos_mpa, investimentos, metricas, anuncios):
+    """Gera recomendações simples para a aba; cada mensagem informa sua regra."""
+    dicas = []
+    if aba == "campanhas":
+        com_gasto = [c for c in campanhas if (c.get("total_investido", 0) or 0) > 0]
+        abaixo = [c for c in com_gasto if (c.get("roas", 0) or 0) < 1]
+        sem_metricas = [c for c in com_gasto if (c.get("total_impressoes", 0) or 0) == 0]
+        estouradas = [c for c in campanhas if (c.get("orcamento_planejado", 0) or 0) > 0 and (c.get("total_investido", 0) or 0) > c.get("orcamento_planejado", 0)]
+        for c in abaixo[:3]:
+            dicas.append({"nivel": "critico", "titulo": f"Revise {c.get('nome', 'a campanha')}", "mensagem": f"ROAS {c.get('roas', 0):.2f}x: a receita registrada está abaixo do investimento."})
+        for c in estouradas[:3]:
+            dicas.append({"nivel": "atencao", "titulo": f"Orçamento excedido: {c.get('nome', 'campanha')}", "mensagem": "O investimento acumulado passou do orçamento planejado."})
+        if sem_metricas:
+            dicas.append({"nivel": "atencao", "titulo": "Faltam métricas", "mensagem": f"{len(sem_metricas)} campanha(s) com investimento não têm impressões registradas; confira se os dados foram importados."})
+        if not dicas:
+            dicas.append({"nivel": "ok", "titulo": "Campanhas sem alertas pelas regras atuais", "mensagem": "Nenhuma campanha investida está abaixo do ROAS 1 ou acima do orçamento."})
+
+    elif aba == "produtos":
+        negativas = [p for p in produtos_mpa if p["mpa"] < 0]
+        baixas = [p for p in produtos_mpa if p["receita"] > 0 and 0 <= p["mpa"] <= p["receita"] * 0.12]
+        sem_custo = [p for p in produtos_mpa if p.get("custo_produto", 0) == 0]
+        for p in negativas[:3]:
+            dicas.append({"nivel": "critico", "titulo": f"Margem negativa: {p['nome']}", "mensagem": f"MPA estimada em R$ {p['mpa']:.2f}; revise custos, frete, taxas e investimento atribuído."})
+        for p in baixas[:3]:
+            dicas.append({"nivel": "atencao", "titulo": f"Margem baixa: {p['nome']}", "mensagem": f"MPA está em até 12% da receita (R$ {p['mpa']:.2f})."})
+        if sem_custo:
+            dicas.append({"nivel": "atencao", "titulo": "Complete os custos dos produtos", "mensagem": f"{len(sem_custo)} produto(s) estão com custo unitário zero; a MPA pode estar superestimada."})
+        if not dicas:
+            dicas.append({"nivel": "ok", "titulo": "Margens sem alertas pelas regras atuais", "mensagem": "Produtos com receita estão acima do limite de MPA de 12%."})
+
+    elif aba == "investimentos":
+        estouradas = [c for c in campanhas if (c.get("orcamento_planejado", 0) or 0) > 0 and (c.get("total_investido", 0) or 0) > c.get("orcamento_planejado", 0)]
+        perto = [c for c in campanhas if (c.get("orcamento_planejado", 0) or 0) > 0 and 0.8 <= (c.get("total_investido", 0) or 0) / c["orcamento_planejado"] <= 1]
+        if estouradas:
+            dicas.append({"nivel": "critico", "titulo": "Há campanha acima do orçamento", "mensagem": f"{len(estouradas)} campanha(s) ultrapassaram o limite planejado."})
+        if perto:
+            dicas.append({"nivel": "atencao", "titulo": "Orçamento perto do limite", "mensagem": f"{len(perto)} campanha(s) já usaram ao menos 80% do orçamento."})
+        sem_verba = [c for c in campanhas if c.get("status") == "ativa" and not (c.get("total_investido", 0) or 0)]
+        if sem_verba:
+            dicas.append({"nivel": "atencao", "titulo": "Campanha ativa sem investimento", "mensagem": f"{len(sem_verba)} campanha(s) ativa(s) ainda não têm investimento registrado."})
+        if not dicas:
+            dicas.append({"nivel": "ok", "titulo": "Orçamentos dentro dos limites", "mensagem": "Nenhum orçamento ultrapassado ou acima de 80% foi encontrado."})
+
+    elif aba == "metricas":
+        sem_anuncio = sum(1 for m in metricas if not m.get("anuncio_id"))
+        sem_visitas = sum(1 for m in metricas if (m.get("cliques", 0) or 0) > 0 and not (m.get("visitas", 0) or 0))
+        sem_vendas = sum(1 for m in metricas if (m.get("visitas", 0) or 0) > 0 and not (m.get("vendas", 0) or 0))
+        if sem_anuncio:
+            dicas.append({"nivel": "atencao", "titulo": "Parte das métricas não está ligada a anúncios", "mensagem": f"{sem_anuncio} registro(s) sem anúncio reduzem a precisão da análise por produto."})
+        if sem_visitas:
+            dicas.append({"nivel": "atencao", "titulo": "Cliques sem visitas registradas", "mensagem": f"Revise {sem_visitas} registro(s): têm cliques, mas nenhuma visita informada."})
+        if sem_vendas:
+            dicas.append({"nivel": "atencao", "titulo": "Visitas sem vendas", "mensagem": f"{sem_vendas} registro(s) têm visitas e nenhuma venda; confira conversão e qualidade do tráfego."})
+        if not dicas:
+            dicas.append({"nivel": "ok", "titulo": "Métricas sem lacunas detectadas", "mensagem": "Os registros têm associação a anúncio e dados de visitas/vendas consistentes com as regras simples."})
+
+    elif aba == "anuncios":
+        totais = {}
+        for m in metricas:
+            aid = m.get("anuncio_id")
+            if aid:
+                t = totais.setdefault(aid, {"impressoes": 0, "cliques": 0, "visitas": 0, "vendas": 0})
+                for chave in t:
+                    t[chave] += m.get(chave, 0) or 0
+        sem_impressao = sum(1 for a in anuncios if str(a["_id"]) not in totais)
+        sem_cliques = sum(1 for t in totais.values() if t["impressoes"] and not t["cliques"])
+        if sem_impressao:
+            dicas.append({"nivel": "atencao", "titulo": "Anúncios sem métricas", "mensagem": f"{sem_impressao} anúncio(s) ainda não têm impressões registradas."})
+        if sem_cliques:
+            dicas.append({"nivel": "atencao", "titulo": "Impressões sem cliques", "mensagem": f"{sem_cliques} anúncio(s) têm impressões, mas nenhum clique; avalie criativo e público."})
+        if not dicas:
+            dicas.append({"nivel": "ok", "titulo": "Sem oportunidade evidente nos dados", "mensagem": "Há registros de desempenho e nenhum anúncio com impressões zeradas em cliques."})
+
+    elif aba in ("relatorios", "indicadores", "comparar"):
+        piores = sorted((c for c in campanhas if (c.get("total_investido", 0) or 0) > 0), key=lambda c: c.get("roas", 0) or 0)
+        if piores and (piores[0].get("roas", 0) or 0) < 1:
+            c = piores[0]
+            dicas.append({"nivel": "critico", "titulo": f"Priorize a análise de {c.get('nome', 'campanha')}", "mensagem": f"É a campanha de menor ROAS ({c.get('roas', 0):.2f}x); confira período, público e qualidade das métricas."})
+        rentaveis = [c for c in campanhas if (c.get("roas", 0) or 0) >= 1]
+        if rentaveis:
+            melhor = max(rentaveis, key=lambda c: c.get("roas", 0) or 0)
+            dicas.append({"nivel": "ok", "titulo": f"Referência de desempenho: {melhor.get('nome', 'campanha')}", "mensagem": f"ROAS {melhor.get('roas', 0):.2f}x; compare estratégia e período com campanhas de menor retorno."})
+        if not dicas:
+            dicas.append({"nivel": "atencao", "titulo": "Ainda não há base suficiente para comparar retorno", "mensagem": "Registre investimentos e métricas para que o ROAS comparativo seja calculado."})
+
+    else:
+        dicas.append({"nivel": "ok", "titulo": "Assistente do AdControl", "mensagem": "As recomendações usam regras transparentes sobre os dados registrados; revise os cadastros para melhorar a precisão."})
+
+    return dicas

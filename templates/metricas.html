@@ -1,25 +1,5 @@
 {% extends "base.html" %}
-{% block titulo %}Métricas<script>
-  /* Mostra no campo "Anúncio" apenas os anúncios da campanha escolhida.
-     A validação de verdade continua no servidor. */
-  (function () {
-    var campanha = document.getElementById('campanha_id');
-    var anuncio = document.getElementById('anuncio_id');
-    if (!campanha || !anuncio) return;
-    function filtrar() {
-      Array.prototype.forEach.call(anuncio.options, function (o) {
-        if (!o.value) return;
-        var ok = !campanha.value || o.getAttribute('data-campanha') === campanha.value;
-        o.hidden = !ok;
-        o.disabled = !ok;
-        if (!ok && o.selected) anuncio.value = '';
-      });
-    }
-    campanha.addEventListener('change', filtrar);
-    filtrar();
-  })();
-</script>
-{% endblock %}
+{% block titulo %}Métricas{% endblock %}
 
 {% block conteudo %}
 {% set tem_erro = get_flashed_messages(category_filter=['erro'])|length > 0 %}
@@ -27,6 +7,8 @@
   <h1>Métricas</h1>
   <p>Registre impressões, cliques, visitas, vendas e receita de cada campanha. CTR, CPC, conversão, custo por venda e ROAS são calculados automaticamente.</p>
 </header>
+
+{% include "_assistente.html" %}
 
 {% if campanhas %}
 <details class="painel formulario" {% if not metricas or tem_erro %}open{% endif %}>

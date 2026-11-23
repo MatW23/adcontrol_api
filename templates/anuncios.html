@@ -8,6 +8,8 @@
   <p>Cada anúncio divulga um produto dentro de uma campanha. Aqui você acompanha o resultado de cada um individualmente.</p>
 </header>
 
+{% include "_assistente.html" %}
+
 {% if campanhas and produtos %}
 <details class="painel formulario" {% if not anuncios or tem_erro %}open{% endif %}>
   <summary>Novo anúncio</summary>

@@ -1,0 +1,15 @@
+<section class="painel painel-assistente" aria-labelledby="titulo-assistente">
+  <div class="painel-topo assistente-topo">
+    <span class="assistente-selo" aria-hidden="true">IA</span>
+    <div><h2 id="titulo-assistente">Assistente do AdControl</h2><p class="sub">Leitura automática baseada em regras do sistema especialista</p></div>
+  </div>
+  <div class="assistente-lista">
+    {% for dica in orientacoes %}
+    <article class="assistente-item assistente-{{ dica.nivel }}">
+      <strong>{{ dica.titulo }}</strong>
+      <p>{{ dica.mensagem }}</p>
+    </article>
+    {% endfor %}
+  </div>
+  <p class="assistente-rodape">As sugestões são informativas, usam somente os dados cadastrados e não alteram campanhas ou anúncios.</p>
+</section>

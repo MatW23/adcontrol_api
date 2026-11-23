@@ -8,6 +8,8 @@
   <p>Cadastre campanhas e acompanhe quanto do orçamento já foi investido e qual o retorno.</p>
 </header>
 
+{% include "_assistente.html" %}
+
 <details class="painel formulario" {% if not campanhas or tem_erro %}open{% endif %}>
   <summary>Nova campanha</summary>
   <form method="POST" action="{{ url_for('criar_campanha_tela') }}" class="form-grade"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">

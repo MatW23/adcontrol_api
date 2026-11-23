@@ -37,7 +37,7 @@ from banco import (
     produtos_collection, anuncios_collection, investimentos_collection,
     metricas_collection, usuarios_collection,
 )
-from especialista import analisar as analisar_desempenho
+from especialista import analisar as analisar_desempenho, orientar as orientar_especialista
 from analise import (
     calcular_resumo, comparar_periodos, dividir, geometria_linhas,
     montar_funil, no_periodo, serie_diaria,
@@ -584,6 +584,17 @@ def montar_dashboard(campanha_id, data_ini, data_fim):
     }
 
 
+def orientacoes_da_aba(aba):
+    """Carrega o contexto geral para as recomendações explicáveis de cada tela."""
+    campanhas = list(campanhas_collection.find())
+    produtos = list(produtos_collection.find())
+    anuncios = list(anuncios_collection.find())
+    metricas = list(metricas_collection.find())
+    investimentos = list(investimentos_collection.find())
+    produtos_mpa, _ = analisar_desempenho(investimentos, metricas, anuncios, produtos, campanhas)
+    return orientar_especialista(aba, campanhas, produtos_mpa, investimentos, metricas, anuncios)
+
+
 # ---------- COMPARACOES (RF09) ----------
 
 def ranking_campanhas():
@@ -680,7 +691,7 @@ def tela_campanhas():
         enriquecer_campanha(c)
         for c in campanhas_collection.find().sort("data_inicio", -1)
     ]
-    return render_template("campanhas.html", campanhas=campanhas)
+    return render_template("campanhas.html", campanhas=campanhas, orientacoes=orientacoes_da_aba("campanhas"))
 
 
 @app.route("/campanhas/nova", methods=["POST"])
@@ -725,7 +736,7 @@ def tela_produtos():
         p["vendas"] += t["vendas"]
         p["receita"] += t["receita"]
         p["impressoes"] += t["impressoes"]
-    return render_template("produtos.html", produtos=produtos)
+    return render_template("produtos.html", produtos=produtos, orientacoes=orientacoes_da_aba("produtos"))
 
 
 @app.route("/produtos/novo", methods=["POST"])
@@ -770,7 +781,8 @@ def tela_anuncios():
         a["produto_nome"] = nomes_produto.get(a.get("produto_id"), "(produto removido)")
         a["totais"] = totais.get(str(a["_id"]), SEM_TOTAIS)
 
-    return render_template("anuncios.html", campanhas=campanhas, produtos=produtos, anuncios=anuncios)
+    return render_template("anuncios.html", campanhas=campanhas, produtos=produtos, anuncios=anuncios,
+                           orientacoes=orientacoes_da_aba("anuncios"))
 
 
 @app.route("/anuncios/novo", methods=["POST"])
@@ -811,7 +823,8 @@ def tela_investimentos():
         inv["campanha_nome"] = nomes_campanha.get(inv.get("campanha_id"), "(campanha removida)")
 
     orcamentos = [enriquecer_campanha(c) for c in campanhas]      # RF01: planejado x investido
-    return render_template("investimentos.html", campanhas=campanhas, investimentos=investimentos, orcamentos=orcamentos)
+    return render_template("investimentos.html", campanhas=campanhas, investimentos=investimentos,
+                           orcamentos=orcamentos, orientacoes=orientacoes_da_aba("investimentos"))
 
 
 @app.route("/investimentos/novo", methods=["POST"])
@@ -851,7 +864,8 @@ def tela_metricas():
         m["campanha_nome"] = nomes_campanha.get(m.get("campanha_id"), "(campanha removida)")
         m["anuncio_titulo"] = titulos_anuncio.get(m.get("anuncio_id"))
 
-    return render_template("metricas.html", campanhas=campanhas, anuncios=anuncios, metricas=metricas)
+    return render_template("metricas.html", campanhas=campanhas, anuncios=anuncios, metricas=metricas,
+                           orientacoes=orientacoes_da_aba("metricas"))
 
 
 @app.route("/metricas/novo", methods=["POST"])
@@ -884,6 +898,7 @@ def tela_dashboard():
         "dashboard.html",
         campanhas=list(campanhas_collection.find().sort("nome", 1)),
         filtros={"campanha_id": campanha_id, "de": data_ini, "ate": data_fim},
+        orientacoes=contexto.get("alertas_especialista", []),
         **contexto,
     )
 
@@ -1135,6 +1150,7 @@ def tela_relatorios():
         "relatorios.html", campanhas=list(campanhas_collection.find().sort("nome", 1)),
         filtros={"campanha_id": campanha_id, "de": data_ini, "ate": data_fim},
         nome_filtro=nome_filtro, **dados,
+        orientacoes=orientacoes_da_aba("relatorios"),
     )
 
 

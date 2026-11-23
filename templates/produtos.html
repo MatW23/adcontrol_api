@@ -8,6 +8,8 @@
   <p>Os produtos que a Presente na Web anuncia e o resultado que cada um trouxe por meio dos seus anúncios.</p>
 </header>
 
+{% include "_assistente.html" %}
+
 <details class="painel formulario" {% if not produtos or tem_erro %}open{% endif %}>
   <summary>Novo produto</summary>
   <form method="POST" action="{{ url_for('criar_produto_tela') }}" class="form-grade"><input type="hidden" name="_csrf" value="{{ csrf_token() }}">
